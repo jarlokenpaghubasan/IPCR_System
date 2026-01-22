@@ -100,9 +100,18 @@
                         <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Administrator Dashboard</h2>
                         <p class="text-gray-600 text-xs sm:text-sm">IPCR and OPCR Management System</p>
                     </div>
-                    <div class="text-right whitespace-nowrap">
-                        <p class="text-gray-900 font-semibold text-sm sm:text-base">{{ auth()->user()->name }}</p>
-                        <p class="text-gray-600 text-xs sm:text-sm">Admin</p>
+                    <div class="flex items-center gap-3 text-right">
+                        <div class="text-right whitespace-nowrap">
+                            <p class="text-gray-900 font-semibold text-sm sm:text-base">{{ auth()->user()->name }}</p>
+                            <p class="text-gray-600 text-xs sm:text-sm">Admin</p>
+                        </div>
+                        @if(auth()->user()->hasProfilePhoto())
+                            <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ auth()->user()->name }}" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-blue-500">
+                        @else
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-500 flex items-center justify-center border-2 border-blue-600">
+                                <i class="fas fa-user text-white text-sm sm:text-base"></i>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>

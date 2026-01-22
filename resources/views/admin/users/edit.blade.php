@@ -115,9 +115,18 @@
                         <h2 class="text-lg sm:text-2xl font-bold text-gray-900">Edit User</h2>
                         <p class="text-gray-600 text-xs sm:text-sm truncate">{{ $user->name }}</p>
                     </div>
-                    <div class="text-right whitespace-nowrap hidden sm:block">
-                        <p class="text-gray-900 font-semibold text-sm">{{ auth()->user()->name }}</p>
-                        <p class="text-gray-600 text-xs">Admin</p>
+                    <div class="flex items-center gap-3 text-right whitespace-nowrap hidden sm:flex">
+                        <div class="text-right">
+                            <p class="text-gray-900 font-semibold text-sm">{{ auth()->user()->name }}</p>
+                            <p class="text-gray-600 text-xs">Admin</p>
+                        </div>
+                        @if(auth()->user()->hasProfilePhoto())
+                            <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ auth()->user()->name }}" class="w-10 h-10 rounded-full object-cover border-2 border-blue-500">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center border-2 border-blue-600">
+                                <i class="fas fa-user text-white text-xs"></i>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -261,16 +270,33 @@
                                             <input type="password" name="password_confirmation" id="password_confirmation" class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                                         </div>
 
-                                        <!-- Role -->
-                                        <div>
-                                            <label for="role" class="block text-sm font-medium text-gray-700 mb-2">Role *</label>
-                                            <select name="role" id="role" required class="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
-                                                <option value="">Select a role</option>
-                                                @foreach($roles as $role)
-                                                    <option value="{{ $role }}" {{ old('role', $user->role) === $role ? 'selected' : '' }}>{{ ucfirst($role) }}</option>
+                                        <!-- Roles (Multiple Selection) -->
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-sm font-medium text-gray-700 mb-3">Roles *</label>
+                                            <div class="space-y-2 bg-gray-50 p-4 rounded-lg">
+                                                @php
+                                                    $availableRoles = ['admin', 'director', 'dean', 'faculty'];
+                                                    $userRoles = $user->roles();
+                                                @endphp
+                                                
+                                                @foreach($availableRoles as $role)
+                                                    <div class="flex items-center">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            name="roles[]" 
+                                                            id="role_{{ $role }}" 
+                                                            value="{{ $role }}"
+                                                            {{ in_array($role, $userRoles) ? 'checked' : '' }}
+                                                            class="w-4 h-4 text-blue-600 rounded"
+                                                        >
+                                                        <label for="role_{{ $role }}" class="ml-2 text-sm text-gray-700 cursor-pointer">
+                                                            {{ ucfirst($role) }}
+                                                        </label>
+                                                    </div>
                                                 @endforeach
-                                            </select>
-                                            @error('role')<span class="text-red-600 text-xs">{{ $message }}</span>@enderror
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-2">Select one or more roles</p>
+                                            @error('roles')<span class="text-red-600 text-xs">{{ $message }}</span>@enderror
                                         </div>
 
                                         <!-- Status -->

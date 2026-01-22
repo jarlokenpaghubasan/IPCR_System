@@ -3,98 +3,106 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class LoginController extends Controller
 {
     /**
-     * Show the login selection page.
+     * Show login selection page
      */
-    public function showLoginSelection(): View
+    public function showLoginSelection()
     {
         return view('auth.login-selection');
     }
 
     /**
-     * Show the login form for the given role.
+     * Show login form for specific role
      */
-    public function showLoginForm($role): View
+    public function showLoginForm($role)
     {
-        // Validate the role
-        $validRoles = ['faculty', 'dean', 'director', 'admin'];
+        $validRoles = ['admin', 'director', 'dean', 'faculty'];
+        
         if (!in_array($role, $validRoles)) {
-            return redirect()->route('login.selection');
+            return redirect()->route('login.selection')->with('error', 'Invalid role selected');
         }
 
-        return view('auth.login', ['role' => $role]);
+        return view('auth.login', compact('role'));
     }
 
     /**
-     * Handle the login request.
+     * Handle login
      */
-    public function login(Request $request): RedirectResponse
+    public function login(Request $request)
     {
-        $role = $request->input('role');
-
-        // Validate the role
-        $validRoles = ['faculty', 'dean', 'director', 'admin'];
-        if (!in_array($role, $validRoles)) {
-            return redirect()->route('login.selection')->withErrors(['role' => 'Invalid role']);
-        }
-
-        // Validate credentials
         $credentials = $request->validate([
-            'username' => ['required', 'string'],
-            'password' => ['required', 'string'],
+            'username' => 'required|string',
+            'password' => 'required|string',
+            'role' => 'required|in:admin,director,dean,faculty',
         ]);
 
-        // Attempt to authenticate user with the given role
-        $user = \App\Models\User::where('username', $credentials['username'])
-            ->where('role', $role)
-            ->first();
+        // Find user by username
+        $user = User::where('username', $credentials['username'])->first();
 
-        if ($user && \Illuminate\Support\Facades\Hash::check($credentials['password'], $user->password)) {
-            // Check if user is active
-            if (!$user->isActive()) {
-                return back()->withErrors(['username' => 'Your account is inactive']);
-            }
-
-            Auth::login($user, $request->boolean('remember'));
-
-            return $this->redirectBasedOnRole($user->role);
+        // Check if user exists and password is correct
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return back()->withErrors([
+                'username' => 'Invalid username or password',
+            ]);
         }
 
-        return back()->withErrors([
-            'username' => 'Invalid username or password for this role',
-        ]);
+        // Check if user is active
+        if (!$user->is_active) {
+            return back()->withErrors([
+                'username' => 'Your account is inactive',
+            ]);
+        }
+
+        // Check if user has the selected role
+        if (!$user->hasRole($credentials['role'])) {
+            return back()->withErrors([
+                'username' => 'You do not have the ' . ucfirst($credentials['role']) . ' role',
+            ]);
+        }
+
+        // Log user in
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        // Redirect to appropriate dashboard
+        return $this->redirectToDashboard($credentials['role']);
     }
 
     /**
-     * Redirect user based on their role.
+     * Redirect to appropriate dashboard based on role
      */
-    private function redirectBasedOnRole($role): RedirectResponse
+    private function redirectToDashboard($role)
     {
-        return match ($role) {
-            'admin' => redirect()->route('admin.dashboard'),
-            'director' => redirect()->route('director.dashboard'),
-            'dean' => redirect()->route('dean.dashboard'),
-            'faculty' => redirect()->route('faculty.dashboard'),
-            default => redirect()->route('login.selection'),
-        };
+        switch ($role) {
+            case 'admin':
+                return redirect()->route('admin.dashboard');
+            case 'director':
+                return redirect()->route('director.dashboard');
+            case 'dean':
+                return redirect()->route('dean.dashboard');
+            case 'faculty':
+                return redirect()->route('faculty.dashboard');
+            default:
+                return redirect()->route('login.selection');
+        }
     }
 
     /**
-     * Handle logout.
+     * Logout user
      */
-    public function logout(Request $request): RedirectResponse
+    public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        return redirect()->route('login.selection');
+        
+        return redirect()->route('login.selection')->with('success', 'Logged out successfully');
     }
 }

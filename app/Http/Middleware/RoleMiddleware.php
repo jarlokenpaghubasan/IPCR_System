@@ -13,18 +13,23 @@ class RoleMiddleware
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // If user is not authenticated, redirect to login selection
+        // Check if user is authenticated
         if (!auth()->check()) {
-            return redirect('/');
+            return redirect()->route('login.selection');
         }
 
-        // If user's role doesn't match the required role, redirect to login selection
-        if (auth()->user()->role !== $role) {
-            return redirect('/')->withErrors(['message' => 'You do not have access to this page.']);
+        $user = auth()->user();
+
+        // Check if user has any of the required roles
+        foreach ($roles as $role) {
+            if ($user->hasRole($role)) {
+                return $next($request);
+            }
         }
 
-        return $next($request);
+        // User doesn't have required role
+        abort(403, 'You do not have permission to access this resource');
     }
 }

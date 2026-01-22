@@ -15,11 +15,22 @@ Route::get('/login/{role}', [LoginController::class, 'showLoginForm'])->name('lo
 Route::post('/login', [LoginController::class, 'login'])->name('login')->middleware('guest');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
-// Dashboard Routes
-Route::get('/faculty/dashboard', [FacultyDashboardController::class, 'index'])->name('faculty.dashboard')->middleware(['auth', 'role:faculty']);
-Route::get('/dean/dashboard', [DeanDashboardController::class, 'index'])->name('dean.dashboard')->middleware(['auth', 'role:dean']);
-Route::get('/director/dashboard', [DirectorDashboardController::class, 'index'])->name('director.dashboard')->middleware(['auth', 'role:director']);
-Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard')->middleware(['auth', 'role:admin']);
+// Dashboard Routes - User can access if they have the role
+Route::get('/faculty/dashboard', [FacultyDashboardController::class, 'index'])
+    ->name('faculty.dashboard')
+    ->middleware(['auth', 'role:faculty']);
+
+Route::get('/dean/dashboard', [DeanDashboardController::class, 'index'])
+    ->name('dean.dashboard')
+    ->middleware(['auth', 'role:dean']);
+
+Route::get('/director/dashboard', [DirectorDashboardController::class, 'index'])
+    ->name('director.dashboard')
+    ->middleware(['auth', 'role:director']);
+
+Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+    ->name('admin.dashboard')
+    ->middleware(['auth', 'role:admin']);
 
 // Admin Panel Routes (all admin routes under /admin/panel)
 Route::middleware(['auth', 'role:admin'])->prefix('admin/panel')->name('admin.')->group(function () {

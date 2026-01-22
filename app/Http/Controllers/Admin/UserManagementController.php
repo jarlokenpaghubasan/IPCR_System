@@ -2,149 +2,183 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Designation;
+use App\Services\PhotoService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\View\View;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Controllers\Controller;
 
 class UserManagementController extends Controller
 {
-    /**
-     * Display a listing of all users.
-     */
-    public function index(): View
-{
-    $users = User::with('department', 'designation')->paginate(10);
-    $departments = Department::all();
-    return view('admin.users.index', ['users' => $users, 'departments' => $departments]);
-}
+    protected $photoService;
 
-    /**
-     * Show the form for creating a new user.
-     */
-    public function create(): View
+    public function __construct(PhotoService $photoService)
     {
-        $departments = Department::all();
-        $designations = Designation::all();
-        $roles = ['faculty', 'dean', 'director'];
-
-        return view('admin.users.create', [
-            'departments' => $departments,
-            'designations' => $designations,
-            'roles' => $roles,
-        ]);
+        $this->photoService = $photoService;
     }
 
     /**
-     * Store a newly created user in storage.
+     * Display a listing of the resource.
      */
-    public function store(Request $request): RedirectResponse
+    public function index()
+    {
+        $users = User::with('department', 'designation', 'userRoles')->paginate(10);
+        $departments = Department::all();
+        return view('admin.users.index', compact('users', 'departments'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $roles = ['admin', 'director', 'dean', 'faculty'];
+        $departments = Department::all();
+        $designations = Designation::all();
+        return view('admin.users.create', compact('roles', 'departments', 'designations'));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'username' => 'required|string|unique:users,username|min:3',
-            'password' => 'required|string|min:8|confirmed',
+            'username' => 'required|string|unique:users,username',
             'phone' => 'nullable|string|max:20',
-            'role' => 'required|in:faculty,dean,director',
+            'password' => 'required|string|min:8|confirmed',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'in:admin,director,dean,faculty',
+            'is_active' => 'boolean',
             'department_id' => 'nullable|exists:departments,id',
             'designation_id' => 'nullable|exists:designations,id',
-            'is_active' => 'boolean',
         ]);
 
-        // Hash the password
-        $validated['password'] = Hash::make($validated['password']);
+        $validated['password'] = bcrypt($validated['password']);
+        $validated['is_active'] = $request->has('is_active');
 
-        User::create($validated);
+        // Store roles separately
+        $roles = $validated['roles'];
+        unset($validated['roles']);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User created successfully!');
+        // Create user
+        $user = User::create($validated);
+
+        // Assign roles
+        foreach ($roles as $role) {
+            $user->assignRole($role);
+        }
+
+        return redirect()->route('admin.users.index')->with('success', 'User created successfully');
     }
 
     /**
-     * Show the form for editing the specified user.
+     * Display the specified resource.
      */
-    public function edit(User $user): View
+    public function show(User $user)
     {
+        $user->load('userRoles');
+        return view('admin.users.show', compact('user'));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(User $user)
+    {
+        $roles = ['admin', 'director', 'dean', 'faculty'];
         $departments = Department::all();
         $designations = Designation::all();
-        $roles = ['faculty', 'dean', 'director'];
-
-        return view('admin.users.edit', [
-            'user' => $user,
-            'departments' => $departments,
-            'designations' => $designations,
-            'roles' => $roles,
-        ]);
+        $user->load('userRoles');
+        return view('admin.users.edit', compact('user', 'roles', 'departments', 'designations'));
     }
 
     /**
-     * Update the specified user in storage.
+     * Update the specified resource in storage.
      */
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(Request $request, User $user)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
-            'username' => 'required|string|unique:users,username,' . $user->id . '|min:3',
-            'password' => 'nullable|string|min:8|confirmed',
+            'username' => 'required|string|unique:users,username,' . $user->id,
             'phone' => 'nullable|string|max:20',
-            'role' => 'required|in:faculty,dean,director',
+            'password' => 'nullable|string|min:8|confirmed',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'in:admin,director,dean,faculty',
+            'is_active' => 'boolean',
             'department_id' => 'nullable|exists:departments,id',
             'designation_id' => 'nullable|exists:designations,id',
-            'is_active' => 'boolean',
         ]);
 
-        // Only hash password if provided
-        if ($request->filled('password')) {
-            $validated['password'] = Hash::make($validated['password']);
+        if (!empty($validated['password'])) {
+            $validated['password'] = bcrypt($validated['password']);
         } else {
             unset($validated['password']);
         }
 
+        $validated['is_active'] = $request->has('is_active');
+
+        // Handle roles separately
+        $newRoles = $validated['roles'];
+        unset($validated['roles']);
+
+        // Update user data
         $user->update($validated);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User updated successfully!');
-    }
-
-    /**
-     * Show the specified user's details.
-     */
-    public function show(User $user): View
-    {
-        $user->load('department', 'designation');
-        return view('admin.users.show', ['user' => $user]);
-    }
-
-    /**
-     * Delete the specified user.
-     */
-    public function destroy(User $user): RedirectResponse
-    {
-        // Prevent deleting the current admin user
-        if (auth()->user()->id === $user->id) {
-            return back()->with('error', 'You cannot delete your own account!');
+        // Update roles
+        $currentRoles = $user->roles();
+        
+        // Remove roles that are no longer selected
+        foreach ($currentRoles as $role) {
+            if (!in_array($role, $newRoles)) {
+                $user->removeRole($role);
+            }
         }
+
+        // Add new roles
+        foreach ($newRoles as $role) {
+            if (!in_array($role, $currentRoles)) {
+                $user->assignRole($role);
+            }
+        }
+
+        return redirect()->route('admin.users.index')->with('success', 'User updated successfully');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(User $user)
+    {
+        // Prevent deleting self
+        if (auth()->user()->id === $user->id) {
+            return redirect()->route('admin.users.index')->with('error', 'You cannot delete your own account');
+        }
+
+        // Delete photos
+        $this->photoService->deleteAllUserPhotos($user);
 
         $user->delete();
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'User deleted successfully!');
+        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');
     }
 
     /**
      * Toggle user active status.
      */
-    public function toggleActive(User $user): RedirectResponse
+    public function toggleActive(User $user)
     {
+        if (auth()->user()->id === $user->id) {
+            return redirect()->route('admin.users.index')->with('error', 'You cannot toggle your own status');
+        }
+
         $user->update(['is_active' => !$user->is_active]);
 
         $status = $user->is_active ? 'activated' : 'deactivated';
-        return back()->with('success', "User $status successfully!");
+        return redirect()->route('admin.users.index')->with('success', "User {$status} successfully");
     }
 }

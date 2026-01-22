@@ -178,9 +178,18 @@
                         <h2 class="text-lg sm:text-2xl font-bold text-gray-900">User Management</h2>
                         <p class="text-gray-600 text-xs sm:text-sm">Manage all users in the system</p>
                     </div>
-                    <div class="text-right whitespace-nowrap hidden sm:block">
-                        <p class="text-gray-900 font-semibold text-sm">{{ auth()->user()->name }}</p>
-                        <p class="text-gray-600 text-xs">Admin</p>
+                    <div class="flex items-center gap-3 text-right whitespace-nowrap hidden sm:flex">
+                        <div class="text-right">
+                            <p class="text-gray-900 font-semibold text-sm">{{ auth()->user()->name }}</p>
+                            <p class="text-gray-600 text-xs">Admin</p>
+                        </div>
+                        @if(auth()->user()->hasProfilePhoto())
+                            <img src="{{ auth()->user()->profile_photo_url }}" alt="{{ auth()->user()->name }}" class="w-10 h-10 rounded-full object-cover border-2 border-blue-500">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center border-2 border-blue-600">
+                                <i class="fas fa-user text-white text-xs"></i>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -248,7 +257,7 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Photo</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Name</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hidden lg:table-cell">Email</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Roles</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hidden lg:table-cell">Department</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
@@ -271,15 +280,17 @@
                                         {{ $user->email }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold
-                                            @if($user->role === 'admin') bg-purple-100 text-purple-800
-                                            @elseif($user->role === 'director') bg-green-100 text-green-800
-                                            @elseif($user->role === 'dean') bg-blue-100 text-blue-800
-                                            @else bg-gray-100 text-gray-800
-                                            @endif
-                                        ">
-                                            {{ ucfirst($user->role) }}
-                                        </span>
+                                        @foreach($user->roles() as $role)
+                                            <span class="px-2 py-1 rounded-full text-xs font-semibold mr-1
+                                                @if($role === 'admin') bg-purple-100 text-purple-800
+                                                @elseif($role === 'director') bg-green-100 text-green-800
+                                                @elseif($role === 'dean') bg-blue-100 text-blue-800
+                                                @else bg-gray-100 text-gray-800
+                                                @endif
+                                            ">
+                                                {{ ucfirst($role) }}
+                                            </span>
+                                        @endforeach
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell">
                                         {{ $user->department?->name ?? '-' }}
@@ -343,15 +354,17 @@
                             <div class="user-card-info">
                                 <div class="user-card-name">{{ $user->name }}</div>
                                 <div class="user-card-role">
-                                    <span class="px-2 py-0.5 rounded text-xs font-semibold
-                                        @if($user->role === 'admin') bg-purple-100 text-purple-800
-                                        @elseif($user->role === 'director') bg-green-100 text-green-800
-                                        @elseif($user->role === 'dean') bg-blue-100 text-blue-800
-                                        @else bg-gray-100 text-gray-800
-                                        @endif
-                                    ">
-                                        {{ ucfirst($user->role) }}
-                                    </span>
+                                    @foreach($user->roles() as $role)
+                                        <span class="px-2 py-0.5 rounded text-xs font-semibold mr-1
+                                            @if($role === 'admin') bg-purple-100 text-purple-800
+                                            @elseif($role === 'director') bg-green-100 text-green-800
+                                            @elseif($role === 'dean') bg-blue-100 text-blue-800
+                                            @else bg-gray-100 text-gray-800
+                                            @endif
+                                        ">
+                                            {{ ucfirst($role) }}
+                                        </span>
+                                    @endforeach
                                     @if($user->is_active)
                                         <span class="ml-2 text-green-600"><i class="fas fa-check-circle"></i></span>
                                     @else
